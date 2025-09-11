@@ -1,10 +1,15 @@
-# model — Hybrid ID3 (from scratch)
+# model — Hybrid ID3 (scikit-learn)
 
-This package contains the **DecisionTreeID3** implementation built **from scratch** (no ML frameworks).  
-It supports **categorical and numeric** features in a single tree by searching a best threshold for numeric splits.
+This package contains the **DecisionTreeID3Sklearn** implementation, built on top of **scikit-learn pipelines**.  
+It extends ID3 with robust preprocessing and integration of categorical + numeric features.
 
 ## Highlights
-- **Hybrid ID3**: categorical splits by value; numeric splits by optimal threshold (information gain).
-- **Safe stopping**: `max_depth`, `min_samples_split`, and majority fallback when no gain.
-- **Robust prediction**: if a feature value was **unseen** at training time (or fails numeric parsing), the model falls back to the **majority label** at the current node.
-- **Readable tree**: `print_tree()` returns a clean ASCII tree; PNG export is handled outside (see `utils/tree_viz.py`).
+- **Data normalization**: automatic cleaning of tokens (removes quotes, empty → `None`).  
+- **Missing-value handling**:  
+  - Numeric → imputed with median.  
+  - Categorical → imputed with `"__MISSING__"`.  
+- **Categorical encoding**: OneHotEncoder with `handle_unknown="ignore"`.  
+- **ID3 alignment**: decision tree trained with `criterion="entropy"` to replicate information gain.  
+- **Optional tuning**: `GridSearchCV` support for `max_depth`, `min_samples_leaf`, and `ccp_alpha`.  
+- **Readable tree**: `print_tree()` uses `sklearn.tree.export_text`, preserving the expanded (post-OHE) feature names.  
+- **Drop-in replacement**: mirrors the API of the *from scratch* `DecisionTreeID3Plus` while adding sklearn’s ecosystem.  

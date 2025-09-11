@@ -1,0 +1,10 @@
+              precision    recall  f1-score   support
+
+         acc      0.934     0.922     0.928        77
+        good      0.917     0.786     0.846        14
+       unacc      0.967     0.983     0.975       242
+       vgood      1.000     0.923     0.960        13
+
+    accuracy                          0.960       346
+   macro avg      0.955     0.904     0.927       346
+weighted avg      0.959     0.960     0.959       346

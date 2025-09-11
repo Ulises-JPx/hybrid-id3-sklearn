@@ -11,7 +11,6 @@ Drop-in replacement de tu clase anterior `DecisionTreeID3Sklearn`.
 """
 from __future__ import annotations
 
-import math
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -53,7 +52,6 @@ def _detect_feature_types(X: List[List[Any]]) -> List[str]:
                 break
         types.append("numeric" if is_numeric else "categorical")
     return types
-
 
 class DecisionTreeID3Sklearn:
     def __init__(

@@ -1,0 +1,26 @@
+{
+  "split": {
+    "ratio_train": 0.8,
+    "ratio_test": 0.19999999999999996,
+    "seed": 42
+  },
+  "target": "class",
+  "sizes": {
+    "train": 1382,
+    "test": 346
+  },
+  "class_counts": {
+    "train": {
+      "acc": 307,
+      "good": 55,
+      "unacc": 968,
+      "vgood": 52
+    },
+    "test": {
+      "acc": 77,
+      "good": 14,
+      "unacc": 242,
+      "vgood": 13
+    }
+  }
+}
