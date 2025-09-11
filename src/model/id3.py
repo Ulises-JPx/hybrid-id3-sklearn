@@ -117,12 +117,17 @@ class DecisionTreeID3Sklearn:
         Xn, yn = _normalize_table(X, y)
         self.pipeline = self._build_pipeline(Xn, feature_names)
 
+        alpha_grid = np.unique(np.concatenate(([0.0], np.geomspace(1e-6, 1e-1, 12))))
+
         if use_gridsearch:
-            param_grid = {
-                "clf__max_depth": [None, 4, 6, 10, 15],
-                "clf__min_samples_leaf": [1, 2, 5, 10],
-                "clf__ccp_alpha": [0.0, 1e-4, 1e-3, 1e-2],
-            }
+            param_grid = { 
+                "clf__max_depth": [None, 3, 5, 7, 10, 15, 20], 
+                "clf__min_samples_leaf": [1, 2, 4, 8, 16], 
+                "clf__min_samples_split": [2, 4, 8, 16], 
+                "clf__ccp_alpha": [0.0, 1e-5, 1e-4, 1e-3, 1e-2], 
+                "clf__max_features": [None, "sqrt", "log2"], 
+                }
+            
             gs = GridSearchCV(
                 self.pipeline,
                 param_grid=param_grid,

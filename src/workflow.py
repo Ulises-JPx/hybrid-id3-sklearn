@@ -77,11 +77,11 @@ def _save_all_results(out_dir, y_true, y_pred, tree_txt, acc, cm_title, metrics_
                       output_filename=os.path.join(out_dir, "accuracy.png"),
                       title="Accuracy")
 
-def run_showcase(feature_names, X, y, out_dir, tree_render=None):
+def run_showcase(feature_names, X, y, out_dir, tree_render=None, use_gridsearch=False):
     os.makedirs(out_dir, exist_ok=True)
     Xn, yn = _normalize_table(X, y)
     clf = DecisionTreeID3Sklearn()
-    clf.train(Xn, yn, feature_names, use_gridsearch=False)
+    clf.train(Xn, yn, feature_names, use_gridsearch=use_gridsearch)
 
     preds = clf.predict_batch(Xn)
     acc = accuracy(yn, preds)
@@ -99,7 +99,8 @@ def run_validation(feature_names,
                    ratio: float = 0.7,
                    seed: int = 42,
                    tree_render=None,
-                   target_name: str = "target"):
+                   target_name: str = "target",
+                   use_gridsearch=False):
     os.makedirs(out_dir, exist_ok=True)
 
     Xn, yn = _normalize_table(X, y)
@@ -132,7 +133,7 @@ def run_validation(feature_names,
         json.dump(meta, f, indent=2, ensure_ascii=False)
 
     clf = DecisionTreeID3Sklearn()
-    clf.train(Xtr, ytr, feature_names)
+    clf.train(Xtr, ytr, feature_names, use_gridsearch=use_gridsearch)
 
     preds = clf.predict_batch(Xte)
     acc = accuracy(yte, preds)

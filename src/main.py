@@ -122,6 +122,7 @@ def build_argument_parser():
                         help="Base directory for results (will be cleaned on each run).")
     parser.add_argument("--no-interactive", action="store_true",
                         help="Avoid prompts even if there is ambiguity in target selection.")
+    parser.add_argument("--gridsearch", action="store_true", help="Activa GridSearchCV para optimización de hiperparámetros.")
     return parser
 
 def main():
@@ -155,6 +156,18 @@ def main():
             default_index=default_index
         )
 
+    # Step 2.5: GridSearchCV option
+    use_gridsearch = args.gridsearch
+    if not args.no_interactive:
+        gridsearch_options = ["No (más rápido)", "Sí (optimiza hiperparámetros)"]
+        default_gridsearch = 0 if not use_gridsearch else 1
+        user_choice = prompt_user_choice(
+            "¿Deseas activar GridSearchCV para optimización de hiperparámetros?",
+            gridsearch_options,
+            default_index=default_gridsearch
+        )
+        use_gridsearch = (user_choice == gridsearch_options[1])
+
     # Step 3: Load cleaned dataset with selected target
     try:
         feature_names, feature_rows, target_values, cleaned_dataframe = load_csv_and_select_target(
@@ -167,6 +180,7 @@ def main():
     # Small run header
     print(f"\n[run] Dataset: {dataset_path}")
     print(f"[run] Target : {selected_target_column}")
+    print(f"[run] GridSearchCV: {'Activado' if use_gridsearch else 'Desactivado'}")
 
     # Step 4: Reset results dir
     reset_result_directories(args.results_dir)
@@ -185,7 +199,8 @@ def main():
     # Step 6: Showcase
     training_accuracy = run_showcase(
         feature_names, feature_rows, target_values, showcase_results_directory,
-        tree_render=TREE_RENDER_CONFIGURATION
+        tree_render=TREE_RENDER_CONFIGURATION,
+        use_gridsearch=use_gridsearch
     )
     print("\n=== SHOWCASE ===")
     print("** Training and testing on the entire dataset **\n")
@@ -196,7 +211,8 @@ def main():
         feature_names, feature_rows, target_values, validation_results_directory,
         ratio=TRAIN_TEST_RATIO, seed=RANDOM_SEED,
         tree_render=TREE_RENDER_CONFIGURATION,
-        target_name=selected_target_column
+        target_name=selected_target_column,
+        use_gridsearch=use_gridsearch
     )
     print("\n=== VALIDATION ===")
     print(f"** Training/testing split: {int(TRAIN_TEST_RATIO*100)}/{100-int(TRAIN_TEST_RATIO*100)}, seed={RANDOM_SEED} **\n")

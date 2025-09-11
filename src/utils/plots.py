@@ -8,7 +8,7 @@ def plot_confusion_matrix(true_labels, predicted_labels, output_filename, title=
     confusion_matrix = np.array(matrix_counts, dtype=int)
 
     fig, ax = plt.subplots()
-    image = ax.imshow(confusion_matrix)  # no explicit colormap per tool constraints
+    image = ax.imshow(confusion_matrix, cmap="Blues")  # paleta azul para la matriz de confusión
     ax.set_xticks(np.arange(len(class_labels)))
     ax.set_yticks(np.arange(len(class_labels)))
     ax.set_xticklabels(class_labels)

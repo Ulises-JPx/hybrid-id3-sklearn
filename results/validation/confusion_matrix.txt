@@ -1,5 +1,0 @@
-True\Pred	acc	good	unacc	vgood
-acc	71	0	6	0
-good	1	11	2	0
-unacc	3	1	238	0
-vgood	1	0	0	12
