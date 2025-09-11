@@ -1,14 +1,15 @@
 """
-DecisionTreeID3Sklearn (improved):
-- Normaliza valores como tu versión sin frameworks (quita comillas, vacíos -> None)
-- Manejo robusto de missing: imputación (num: mediana, cat: "__MISSING__")
-- Codificación de categóricos con OneHotEncoder(handle_unknown="ignore")
-- Árbol de sklearn con entropía (info gain) para alinearlo con ID3
-- Opción de GridSearchCV (desactivada por defecto) con ccp_alpha, max_depth, min_samples_leaf
-- print_tree() via sklearn.tree.export_text (muestra nombres originales de features)
+@author Ulises Jaramillo Portilla | A01798380 | Ulises-JPx
 
-Drop-in replacement de tu clase anterior `DecisionTreeID3Sklearn`.
+This file implements a Decision Tree classifier using the ID3 algorithm logic,
+leveraging scikit-learn's DecisionTreeClassifier with entropy criterion to align
+with information gain. The class DecisionTreeID3Sklearn provides robust data
+preprocessing, including normalization of input values, handling of missing data
+through imputation (median for numeric, constant for categorical), and encoding
+of categorical features using OneHotEncoder. It supports optional hyperparameter
+optimization via GridSearchCV.
 """
+
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
@@ -21,44 +22,93 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.tree import DecisionTreeClassifier, export_text
 from sklearn.model_selection import GridSearchCV
 
+def clean_token(value: Any) -> Optional[str]:
+    """
+    Cleans and normalizes a single token from the dataset.
 
-def _clean_token(v: Any) -> Optional[str]:
-    if v is None:
+    Parameters:
+        value (Any): The input value to clean.
+
+    Returns:
+        Optional[str]: The cleaned string, or None if empty or invalid.
+    """
+    if value is None:
         return None
-    s = str(v).strip()
-    if len(s) >= 2 and ((s[0] == s[-1] == "'") or (s[0] == s[-1] == '"')):
-        s = s[1:-1].strip()
-    return s if s != "" else None
+    string_value = str(value).strip()
+    # Remove surrounding quotes if present
+    if len(string_value) >= 2 and ((string_value[0] == string_value[-1] == "'") or (string_value[0] == string_value[-1] == '"')):
+        string_value = string_value[1:-1].strip()
+    # Return None for empty strings
+    return string_value if string_value != "" else None
 
+def normalize_table(features: List[List[Any]], targets: List[Any]) -> tuple[list[list[Any]], list[Any]]:
+    """
+    Normalizes the entire feature and target tables by cleaning each token.
 
-def _normalize_table(X: List[List[Any]], y: List[Any]):
-    Xn = [[_clean_token(v) for v in row] for row in X]
-    yn = [_clean_token(t) for t in y]
-    return Xn, yn
+    Parameters:
+        features (List[List[Any]]): The input feature matrix.
+        targets (List[Any]): The target labels.
 
+    Returns:
+        tuple[list[list[Any]], list[Any]]: Normalized features and targets.
+    """
+    normalized_features = [[clean_token(value) for value in row] for row in features]
+    normalized_targets = [clean_token(target) for target in targets]
+    return normalized_features, normalized_targets
 
-def _detect_feature_types(X: List[List[Any]]) -> List[str]:
-    types: List[str] = []
-    for col in zip(*X):
+def detect_feature_types(features: List[List[Any]]) -> List[str]:
+    """
+    Detects the type of each feature column (numeric or categorical).
+
+    Parameters:
+        features (List[List[Any]]): The input feature matrix.
+
+    Returns:
+        List[str]: List of feature types ("numeric" or "categorical").
+    """
+    feature_types: List[str] = []
+    # Iterate over columns to determine type
+    for column in zip(*features):
         is_numeric = True
-        for v in col:
-            vv = _clean_token(v)
-            if vv is None:
+        for value in column:
+            cleaned_value = clean_token(value)
+            if cleaned_value is None:
                 continue
             try:
-                float(vv)
+                float(cleaned_value)
             except ValueError:
                 is_numeric = False
                 break
-        types.append("numeric" if is_numeric else "categorical")
-    return types
+        feature_types.append("numeric" if is_numeric else "categorical")
+    return feature_types
 
 class DecisionTreeID3Sklearn:
+    """
+    DecisionTreeID3Sklearn implements a decision tree classifier using scikit-learn,
+    with preprocessing and feature handling aligned to the ID3 algorithm.
+
+    Attributes:
+        criterion (str): Splitting criterion for the tree ("entropy" for ID3).
+        random_state (Optional[int]): Random seed for reproducibility.
+        pipeline (Optional[Pipeline]): The complete scikit-learn pipeline.
+        clf_ (Optional[DecisionTreeClassifier]): Reference to the trained classifier.
+        feature_names_ (List[str]): Original feature names.
+        feature_types_ (List[str]): Detected feature types.
+        _ohe_feature_names_ (Optional[List[str]]): Feature names after OneHotEncoding.
+    """
+
     def __init__(
         self,
-        criterion: str = "entropy",  # align with ID3 (information gain)
+        criterion: str = "entropy",
         random_state: Optional[int] = 42,
     ):
+        """
+        Initializes the DecisionTreeID3Sklearn instance.
+
+        Parameters:
+            criterion (str): Splitting criterion ("entropy" for information gain).
+            random_state (Optional[int]): Random seed for reproducibility.
+        """
         self.criterion = criterion
         self.random_state = random_state
         self.pipeline: Optional[Pipeline] = None
@@ -67,68 +117,95 @@ class DecisionTreeID3Sklearn:
         self.feature_types_: List[str] = []
         self._ohe_feature_names_: Optional[List[str]] = None
 
-    def _build_pipeline(self, X: List[List[Any]], feature_names: List[str]) -> Pipeline:
-        self.feature_types_ = _detect_feature_types(X)
+    def build_pipeline(self, features: List[List[Any]], feature_names: List[str]) -> Pipeline:
+        """
+        Constructs the preprocessing and classification pipeline.
+
+        Parameters:
+            features (List[List[Any]]): The input feature matrix.
+            feature_names (List[str]): List of feature names.
+
+        Returns:
+            Pipeline: The constructed scikit-learn pipeline.
+        """
+        # Detect feature types and store feature names
+        self.feature_types_ = detect_feature_types(features)
         self.feature_names_ = list(feature_names)
 
-        num_idx = [i for i, t in enumerate(self.feature_types_) if t == "numeric"]
-        cat_idx = [i for i, t in enumerate(self.feature_types_) if t == "categorical"]
+        # Identify indices for numeric and categorical features
+        numeric_indices = [i for i, feature_type in enumerate(self.feature_types_) if feature_type == "numeric"]
+        categorical_indices = [i for i, feature_type in enumerate(self.feature_types_) if feature_type == "categorical"]
 
-        num_tf = Pipeline(
+        # Define numeric transformer: impute missing values with median
+        numeric_transformer = Pipeline(
             steps=[
                 ("imputer", SimpleImputer(strategy="median")),
             ]
         )
-        cat_tf = Pipeline(
+        # Define categorical transformer: impute missing with constant, then OneHotEncode
+        categorical_transformer = Pipeline(
             steps=[
                 ("imputer", SimpleImputer(strategy="constant", fill_value="__MISSING__")),
                 ("ohe", OneHotEncoder(handle_unknown="ignore", sparse_output=False)),
             ]
         )
 
-        pre = ColumnTransformer(
+        # Combine transformers using ColumnTransformer
+        preprocessor = ColumnTransformer(
             transformers=[
-                ("num", num_tf, num_idx),
-                ("cat", cat_tf, cat_idx),
+                ("num", numeric_transformer, numeric_indices),
+                ("cat", categorical_transformer, categorical_indices),
             ],
             remainder="drop",
         )
 
-        clf = DecisionTreeClassifier(
+        # Initialize DecisionTreeClassifier with specified criterion and random state
+        classifier = DecisionTreeClassifier(
             criterion=self.criterion,
             random_state=self.random_state,
         )
 
-        pipe = Pipeline(
+        # Build the complete pipeline: preprocessing followed by classification
+        pipeline = Pipeline(
             steps=[
-                ("pre", pre),
-                ("clf", clf),
+                ("pre", preprocessor),
+                ("clf", classifier),
             ]
         )
-        return pipe
+        return pipeline
 
     def train(
         self,
-        X: List[List[Any]],
-        y: List[str],
+        features: List[List[Any]],
+        targets: List[str],
         feature_names: List[str],
         use_gridsearch: bool = False,
     ) -> None:
-        Xn, yn = _normalize_table(X, y)
-        self.pipeline = self._build_pipeline(Xn, feature_names)
+        """
+        Trains the decision tree model on the provided data.
 
-        alpha_grid = np.unique(np.concatenate(([0.0], np.geomspace(1e-6, 1e-1, 12))))
+        Parameters:
+            features (List[List[Any]]): The input feature matrix.
+            targets (List[str]): The target labels.
+            feature_names (List[str]): List of feature names.
+            use_gridsearch (bool): Whether to perform hyperparameter optimization.
+        """
+        # Normalize features and targets
+        normalized_features, normalized_targets = normalize_table(features, targets)
+        # Build the pipeline for preprocessing and classification
+        self.pipeline = self.build_pipeline(normalized_features, feature_names)
 
         if use_gridsearch:
+            # Define hyperparameter grid for GridSearchCV
             param_grid = { 
                 "clf__max_depth": [None, 3, 5, 7, 10, 15, 20], 
                 "clf__min_samples_leaf": [1, 2, 4, 8, 16], 
                 "clf__min_samples_split": [2, 4, 8, 16], 
                 "clf__ccp_alpha": [0.0, 1e-5, 1e-4, 1e-3, 1e-2], 
                 "clf__max_features": [None, "sqrt", "log2"], 
-                }
-            
-            gs = GridSearchCV(
+            }
+            # Perform grid search with cross-validation
+            grid_search = GridSearchCV(
                 self.pipeline,
                 param_grid=param_grid,
                 cv=5,
@@ -136,55 +213,85 @@ class DecisionTreeID3Sklearn:
                 scoring="accuracy",
                 refit=True,
             )
-            gs.fit(Xn, yn)
-            self.pipeline = gs.best_estimator_
+            grid_search.fit(normalized_features, normalized_targets)
+            # Use the best estimator found by grid search
+            self.pipeline = grid_search.best_estimator_
         else:
-            self.pipeline.fit(Xn, yn)
+            # Fit the pipeline directly without hyperparameter search
+            self.pipeline.fit(normalized_features, normalized_targets)
 
-        # guardar referencia directa al árbol entrenado
+        # Store reference to the trained classifier for later use
         self.clf_ = self.pipeline.named_steps["clf"]
 
-        # capturar nombres finales de features (post-OHE) para print_tree
-        pre: ColumnTransformer = self.pipeline.named_steps["pre"]
-        ohe = None
+        # Extract final feature names after preprocessing (including OHE)
+        preprocessor: ColumnTransformer = self.pipeline.named_steps["pre"]
+        one_hot_encoder = None
         try:
-            ohe = pre.named_transformers_["cat"].named_steps["ohe"]
+            one_hot_encoder = preprocessor.named_transformers_["cat"].named_steps["ohe"]
         except Exception:
-            ohe = None
-        ohe_names = []
-        if ohe is not None and hasattr(ohe, "get_feature_names_out"):
-            cat_cols = [self.feature_names_[i] for i, t in enumerate(self.feature_types_) if t == "categorical"]
-            ohe_names = list(ohe.get_feature_names_out(cat_cols))
-        num_names = [self.feature_names_[i] for i, t in enumerate(self.feature_types_) if t == "numeric"]
-        self._ohe_feature_names_ = num_names + ohe_names
+            one_hot_encoder = None
+        one_hot_feature_names = []
+        if one_hot_encoder is not None and hasattr(one_hot_encoder, "get_feature_names_out"):
+            categorical_columns = [self.feature_names_[i] for i, feature_type in enumerate(self.feature_types_) if feature_type == "categorical"]
+            one_hot_feature_names = list(one_hot_encoder.get_feature_names_out(categorical_columns))
+        numeric_feature_names = [self.feature_names_[i] for i, feature_type in enumerate(self.feature_types_) if feature_type == "numeric"]
+        self._ohe_feature_names_ = numeric_feature_names + one_hot_feature_names
 
-    def predict_batch(self, X: List[List[Any]]) -> List[str]:
+    def predict_batch(self, features: List[List[Any]]) -> List[str]:
+        """
+        Predicts class labels for a batch of input samples.
+
+        Parameters:
+            features (List[List[Any]]): The input feature matrix.
+
+        Returns:
+            List[str]: Predicted class labels for each sample.
+        """
         if self.pipeline is None:
             raise RuntimeError("Model is not trained.")
-        Xn, _ = _normalize_table(X, [None] * len(X))
-        preds = self.pipeline.predict(Xn)
-        return list(preds)
+        # Normalize input features
+        normalized_features, _ = normalize_table(features, [None] * len(features))
+        # Predict using the trained pipeline
+        predictions = self.pipeline.predict(normalized_features)
+        return list(predictions)
 
-    def predict_proba(self, X: List[List[Any]]) -> List[Dict[str, float]]:
+    def predict_proba(self, features: List[List[Any]]) -> List[Dict[str, float]]:
+        """
+        Predicts class probabilities for a batch of input samples.
+
+        Parameters:
+            features (List[List[Any]]): The input feature matrix.
+
+        Returns:
+            List[Dict[str, float]]: List of dictionaries mapping class labels to probabilities.
+        """
         if self.pipeline is None:
             raise RuntimeError("Model is not trained.")
-        Xn, _ = _normalize_table(X, [None] * len(X))
-        proba = self.pipeline.predict_proba(Xn)
-        classes = list(self.pipeline.classes_)
-        out: List[Dict[str, float]] = []
-        for p in proba:
-            out.append({c: float(pp) for c, pp in zip(classes, p)})
-        return out
+        # Normalize input features
+        normalized_features, _ = normalize_table(features, [None] * len(features))
+        # Get probability predictions from the pipeline
+        probabilities = self.pipeline.predict_proba(normalized_features)
+        class_labels = list(self.pipeline.classes_)
+        output: List[Dict[str, float]] = []
+        # Map each probability vector to a dictionary of class: probability
+        for probability_vector in probabilities:
+            output.append({class_label: float(prob) for class_label, prob in zip(class_labels, probability_vector)})
+        return output
 
     def print_tree(self) -> str:
-        """Exporta el árbol como texto usando las features post-transformación.
-        Nota: export_text requiere las columnas **después** del preprocesamiento.
+        """
+        Exports the trained decision tree as a text representation.
+
+        Returns:
+            str: Textual representation of the decision tree structure.
         """
         if self.clf_ is None:
-            return "<Modelo no entrenado>"
+            return "<Model not trained>"
         feature_names = self._ohe_feature_names_
         try:
-            txt = export_text(self.clf_, feature_names=feature_names)
+            # Attempt to export tree with feature names after preprocessing
+            tree_text = export_text(self.clf_, feature_names=feature_names)
         except Exception:
-            txt = export_text(self.clf_)
-        return txt
+            # Fallback to exporting without feature names
+            tree_text = export_text(self.clf_)
+        return tree_text

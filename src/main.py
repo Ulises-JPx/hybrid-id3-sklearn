@@ -1,5 +1,4 @@
 
-# -*- coding: utf-8 -*-
 """
 @author Ulises Jaramillo Portilla | A01798380 | Ulises-JPx
 
@@ -208,11 +207,11 @@ def main():
 
     # Step 7: Validation (pass target_name to label the CSV headers correctly)
     test_accuracy = run_validation(
-        feature_names, feature_rows, target_values, validation_results_directory,
-        ratio=TRAIN_TEST_RATIO, seed=RANDOM_SEED,
-        tree_render=TREE_RENDER_CONFIGURATION,
-        target_name=selected_target_column,
-        use_gridsearch=use_gridsearch
+    feature_names, feature_rows, target_values, validation_results_directory,
+    train_ratio=TRAIN_TEST_RATIO, seed=RANDOM_SEED,
+    tree_render=TREE_RENDER_CONFIGURATION,
+    target_name=selected_target_column,
+    use_gridsearch=use_gridsearch
     )
     print("\n=== VALIDATION ===")
     print(f"** Training/testing split: {int(TRAIN_TEST_RATIO*100)}/{100-int(TRAIN_TEST_RATIO*100)}, seed={RANDOM_SEED} **\n")
