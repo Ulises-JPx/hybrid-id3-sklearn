@@ -1,4 +1,4 @@
-# Hybrid ID3 — Scikit-learn Enhanced
+# Hybrid ID3 — Scikit-learn
 
 An improved implementation of a **hybrid ID3 decision tree** built on top of **scikit-learn**, with robust preprocessing and support for both categorical and numerical data.  
 Developed for the implementation portfolio of **TC3006C – Advanced AI for Data Science I (G101)** at Tecnológico de Monterrey, Campus Estado de México.
