@@ -14,6 +14,7 @@ from typing import List, Tuple
 import pandas as pd
 
 from utils.files import reset_result_directories, ensure_result_directories
+from utils.plots import plot_accuracy_comparison
 from workflow import run_showcase, run_validation, run_train_val_test
 
 # Fixed configuration for train/test split ratio and random seed
@@ -167,6 +168,29 @@ def main():
         )
         use_gridsearch = (user_choice == gridsearch_options[1])
 
+    # Step 2.6: Cost-Complexity Pruning option
+    ccp_alpha = 0.0
+    if not args.no_interactive:
+        pruning_options = [
+            "No (sin poda) -> ccp_alpha=0.0",
+            "Poda ligera -> ccp_alpha=0.001",
+            "Poda media -> ccp_alpha=0.01",
+            "Poda fuerte -> ccp_alpha=0.1"
+        ]
+        user_choice = prompt_user_choice(
+            "¿Deseas activar Cost-Complexity Pruning (poda)?",
+            pruning_options,
+            default_index=0
+        )
+        if user_choice == pruning_options[1]:
+            ccp_alpha = 0.001
+        elif user_choice == pruning_options[2]:
+            ccp_alpha = 0.01
+        elif user_choice == pruning_options[3]:
+            ccp_alpha = 0.1
+
+
+
     # Step 3: Load cleaned dataset with selected target
     try:
         feature_names, feature_rows, target_values, cleaned_dataframe = load_csv_and_select_target(
@@ -201,7 +225,8 @@ def main():
     training_accuracy = run_showcase(
         feature_names, feature_rows, target_values, showcase_results_directory,
         tree_render=TREE_RENDER_CONFIGURATION,
-        use_gridsearch=use_gridsearch
+        use_gridsearch=use_gridsearch,
+        ccp_alpha=ccp_alpha
     )
     print("\n=== SHOWCASE ===")
     print("** Training and testing on the entire dataset **\n")
@@ -219,7 +244,8 @@ def main():
         train_ratio=TRAIN_TEST_RATIO, seed=RANDOM_SEED,
         tree_render=TREE_RENDER_CONFIGURATION,
         target_name=selected_target_column,
-        use_gridsearch=use_gridsearch
+        use_gridsearch=use_gridsearch,
+        ccp_alpha=ccp_alpha
     )
     print("\n=== VALIDATION ===")
     print(f"** Training/testing split: {int(TRAIN_TEST_RATIO*100)}/{100-int(TRAIN_TEST_RATIO*100)}, seed={RANDOM_SEED} **\n")
@@ -237,7 +263,8 @@ def main():
         feature_names, feature_rows, target_values, train_val_test_results_directory,
         train_ratio=0.7, val_ratio=0.15, seed=RANDOM_SEED,
         target_name=selected_target_column,
-        use_gridsearch=use_gridsearch
+        use_gridsearch=use_gridsearch,
+        ccp_alpha=ccp_alpha
     )
     print("\n=== TRAIN / VALIDATION / TEST ===")
     print(f"** Split: 70/15/15, seed={RANDOM_SEED} **\n")
@@ -249,6 +276,15 @@ def main():
     if os.path.exists(classification_file):
         with open(classification_file, "r", encoding="utf-8") as f:
             print(f.read())
+
+    # Comparación de accuracies
+    plot_accuracy_comparison(
+        showcase_acc=training_accuracy,
+        validation_acc=test_accuracy,
+        val_acc=scores["val_accuracy"],
+        test_acc=scores["test_accuracy"],
+        output_filename=os.path.join(args.results_dir, "accuracy_comparison.png")
+    )
 
 if __name__ == "__main__":
     main()

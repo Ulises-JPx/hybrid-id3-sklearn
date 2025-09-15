@@ -101,6 +101,7 @@ class DecisionTreeID3Sklearn:
         self,
         criterion: str = "entropy",
         random_state: Optional[int] = 42,
+        ccp_alpha: float = 0.0
     ):
         """
         Initializes the DecisionTreeID3Sklearn instance.
@@ -111,6 +112,7 @@ class DecisionTreeID3Sklearn:
         """
         self.criterion = criterion
         self.random_state = random_state
+        self.ccp_alpha = ccp_alpha
         self.pipeline: Optional[Pipeline] = None
         self.clf_: Optional[DecisionTreeClassifier] = None
         self.feature_names_: List[str] = []
@@ -163,6 +165,7 @@ class DecisionTreeID3Sklearn:
         classifier = DecisionTreeClassifier(
             criterion=self.criterion,
             random_state=self.random_state,
+            ccp_alpha=self.ccp_alpha
         )
 
         # Build the complete pipeline: preprocessing followed by classification
@@ -204,18 +207,28 @@ class DecisionTreeID3Sklearn:
                 "clf__ccp_alpha": [0.0, 1e-5, 1e-4, 1e-3, 1e-2], 
                 "clf__max_features": [None, "sqrt", "log2"], 
             }
-            # Perform grid search with cross-validation
-            grid_search = GridSearchCV(
-                self.pipeline,
-                param_grid=param_grid,
-                cv=5,
-                n_jobs=-1,
-                scoring="accuracy",
-                refit=True,
-            )
-            grid_search.fit(normalized_features, normalized_targets)
-            # Use the best estimator found by grid search
-            self.pipeline = grid_search.best_estimator_
+            # Ajustar cv dinámicamente según la clase menos poblada
+            import numpy as np
+            from collections import Counter
+            class_counts = Counter(normalized_targets)
+            min_class_count = min(class_counts.values())
+            n_splits = min(5, min_class_count)
+            if n_splits < 2:
+                import warnings
+                warnings.warn("No se puede usar GridSearchCV: la clase menos poblada tiene menos de 2 muestras. Se entrenará sin búsqueda de hiperparámetros.")
+                self.pipeline.fit(normalized_features, normalized_targets)
+            else:
+                grid_search = GridSearchCV(
+                    self.pipeline,
+                    param_grid=param_grid,
+                    cv=n_splits,
+                    n_jobs=-1,
+                    scoring="accuracy",
+                    refit=True,
+                )
+                grid_search.fit(normalized_features, normalized_targets)
+                # Use the best estimator found by grid search
+                self.pipeline = grid_search.best_estimator_
         else:
             # Fit the pipeline directly without hyperparameter search
             self.pipeline.fit(normalized_features, normalized_targets)

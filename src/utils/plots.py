@@ -132,3 +132,53 @@ def plot_accuracy_bar(accuracy_score, output_filename, title="Accuracy"):
     plt.savefig(output_filename, bbox_inches="tight")
     # Close the plot to free up resources
     plt.close()
+
+def plot_learning_curve(train_sizes, train_scores, val_scores, output_filename="learning_curve.png"):
+    """
+    Plots and saves a learning curve showing training and validation accuracy vs training size.
+
+    Parameters:
+        train_sizes (list): List of training set sizes.
+        train_scores (list): Accuracy scores for training sets.
+        val_scores (list): Accuracy scores for validation sets.
+        output_filename (str): Path to save the plot (default: "learning_curve.png").
+    """
+    plt.figure(figsize=(8, 6))
+    plt.plot(train_sizes, train_scores, marker="o", label="Training Accuracy")
+    plt.plot(train_sizes, val_scores, marker="s", label="Validation Accuracy")
+    plt.xlabel("Training Set Size")
+    plt.ylabel("Accuracy")
+    plt.title("Learning Curve")
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig(output_filename, bbox_inches="tight")
+    plt.close()
+
+def plot_accuracy_comparison(showcase_acc, validation_acc, val_acc, test_acc, output_filename="accuracy_comparison.png"):
+    """
+    Plots and saves a bar chart comparing accuracies from different evaluation modes.
+
+    Parameters:
+        showcase_acc (float): Accuracy using all data (showcase mode).
+        validation_acc (float): Accuracy from train/test split (validation mode).
+        val_acc (float): Validation accuracy from train/val/test split.
+        test_acc (float): Test accuracy from train/val/test split.
+        output_filename (str): Path to save the plot (default: "accuracy_comparison.png").
+    """
+    labels = ["Showcase", "Validation (Test)", "Train/Val (Val)", "Train/Val (Test)"]
+    values = [showcase_acc, validation_acc, val_acc, test_acc]
+
+    plt.figure(figsize=(8, 6))
+    bars = plt.bar(labels, values, color=["#4CAF50", "#2196F3", "#FFC107", "#F44336"])
+    plt.ylim(0, 1.0)
+    plt.ylabel("Accuracy")
+    plt.title("Comparison of Model Accuracies")
+    plt.gca().set_title("Comparison of Model Accuracies", pad=20)
+
+    for bar, val in zip(bars, values):
+        plt.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01, f"{val:.2f}", ha="center")
+
+    plt.tight_layout()
+    plt.savefig(output_filename, bbox_inches="tight")
+    plt.close()

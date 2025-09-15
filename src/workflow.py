@@ -17,7 +17,7 @@ import numpy as np
 from model.id3 import DecisionTreeID3Sklearn
 from utils.files import save_text_to_file
 from utils.metrics import accuracy, confusion_matrix_text, classification_report_text, classify_model
-from utils.plots import plot_confusion_matrix, plot_per_class_metrics_bars, plot_accuracy_bar
+from utils.plots import plot_confusion_matrix, plot_per_class_metrics_bars, plot_accuracy_bar, plot_learning_curve
 from utils.tree_viz import save_tree_png_safe
 
 def clean_token(value):
@@ -119,7 +119,8 @@ def run_train_val_test(feature_names: List[str],
                        val_ratio: float = 0.15,
                        seed: int = 42,
                        target_name: str = "target",
-                       use_gridsearch: bool = False) -> Dict[str, float]:
+                       use_gridsearch: bool = False,
+                       ccp_alpha: float = 0.0) -> Dict[str, float]:
     """
     Trains and evaluates the decision tree using a train/validation/test split.
     Saves splits, metadata, and results into the output directory.
@@ -186,7 +187,7 @@ def run_train_val_test(feature_names: List[str],
         json.dump(metadata, metadata_file, indent=2, ensure_ascii=False)
 
     # Train classifier
-    classifier = DecisionTreeID3Sklearn()
+    classifier = DecisionTreeID3Sklearn(ccp_alpha=ccp_alpha)
     classifier.train(X_train, y_train, feature_names, use_gridsearch=use_gridsearch)
 
     # Validate
@@ -201,6 +202,30 @@ def run_train_val_test(feature_names: List[str],
     bias = 1 - test_acc
     variance = np.var([1 if t == p else 0 for t, p in zip(y_test, test_preds)])
     classification = classify_model(bias, variance, test_acc)
+
+    # === Learning Curve ===
+    train_sizes = [int(len(X_train) * frac) for frac in [0.2, 0.4, 0.6, 0.8, 1.0]]
+    train_scores = []
+    val_scores = []
+
+    for size in train_sizes:
+        X_sub, y_sub = X_train[:size], y_train[:size]
+        clf = DecisionTreeID3Sklearn()
+        clf.train(X_sub, y_sub, feature_names, use_gridsearch=use_gridsearch)
+
+        # Accuracy en train
+        train_preds = clf.predict_batch(X_sub)
+        train_scores.append(accuracy(y_sub, train_preds))
+
+        # Accuracy en validation
+        val_preds_sub = clf.predict_batch(X_val)
+        val_scores.append(accuracy(y_val, val_preds_sub))
+
+    # Guardar curva de aprendizaje
+    plot_learning_curve(
+        train_sizes, train_scores, val_scores,
+        output_filename=os.path.join(output_dir, "learning_curve.png")
+    )
 
     with open(os.path.join(output_dir, "model_classification.txt"), "w", encoding="utf-8") as f:
         f.write(f"Bias: {classification['bias_level']}\n")
@@ -257,7 +282,7 @@ def save_all_results(output_dir: str, true_targets: List, predicted_targets: Lis
                       output_filename=os.path.join(output_dir, "accuracy.png"),
                       title="Accuracy")
 
-def run_showcase(feature_names: List[str], features: List[List], targets: List, output_dir: str, tree_render=None, use_gridsearch: bool = False) -> float:
+def run_showcase(feature_names: List[str], features: List[List], targets: List, output_dir: str, tree_render=None, use_gridsearch: bool = False, ccp_alpha: float = 0.0) -> float:
     """
     Trains and evaluates the decision tree on the entire dataset (showcase mode).
 
@@ -276,8 +301,8 @@ def run_showcase(feature_names: List[str], features: List[List], targets: List, 
     # Normalize features and targets
     normalized_features, normalized_targets = normalize_table(features, targets)
     # Initialize and train the decision tree classifier
-    classifier = DecisionTreeID3Sklearn()
-    classifier.train(normalized_features, normalized_targets, feature_names, use_gridsearch=use_gridsearch)
+    classifier = DecisionTreeID3Sklearn(ccp_alpha=ccp_alpha)
+    classifier.train(normalized_features, normalized_targets, feature_names, use_gridsearch=use_gridsearch, )
 
     # Generate predictions on the entire dataset
     predictions = classifier.predict_batch(normalized_features)
@@ -312,7 +337,8 @@ def run_validation(feature_names: List[str],
                    seed: int = 42,
                    tree_render=None,
                    target_name: str = "target",
-                   use_gridsearch: bool = False) -> float:
+                   use_gridsearch: bool = False,
+                   ccp_alpha: float = 0.0) -> float:
     """
     Trains and evaluates the decision tree using a train/test split (validation mode).
 
@@ -368,7 +394,7 @@ def run_validation(feature_names: List[str],
         json.dump(metadata, metadata_file, indent=2, ensure_ascii=False)
 
     # Initialize and train the decision tree classifier on training data
-    classifier = DecisionTreeID3Sklearn()
+    classifier = DecisionTreeID3Sklearn(ccp_alpha=ccp_alpha)
     classifier.train(train_features, train_targets, feature_names, use_gridsearch=use_gridsearch)
 
     # Generate predictions on the test set
