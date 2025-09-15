@@ -106,7 +106,7 @@ def split_train_val_test(features, targets, train_ratio=0.7, val_ratio=0.15, see
     """
     from sklearn.model_selection import train_test_split
     X_train, X_temp, y_train, y_temp = train_test_split(features, targets, test_size=1-train_ratio, random_state=seed, stratify=targets)
-    # dividir lo que quedó en validación y test
+    # split the remaining data into validation and test sets
     val_size = val_ratio / (1-train_ratio)  # proporcional dentro del temp
     X_val, X_test, y_val, y_test = train_test_split(X_temp, y_temp, test_size=1-val_size, random_state=seed, stratify=y_temp)
     return X_train, y_train, X_val, y_val, X_test, y_test
@@ -221,7 +221,7 @@ def run_train_val_test(feature_names: List[str],
         val_preds_sub = clf.predict_batch(X_val)
         val_scores.append(accuracy(y_val, val_preds_sub))
 
-    # Guardar curva de aprendizaje
+    # Save learning curve
     plot_learning_curve(
         train_sizes, train_scores, val_scores,
         output_filename=os.path.join(output_dir, "learning_curve.png")
@@ -309,12 +309,10 @@ def run_showcase(feature_names: List[str], features: List[List], targets: List, 
     # Calculate accuracy
     accuracy_value = accuracy(normalized_targets, predictions)
 
-    # Calcular clasificación cualitativa
     bias = 1 - accuracy_value  # ejemplo simple: bias ~ error
     variance = np.var([1 if t == p else 0 for t, p in zip(normalized_targets, predictions)])
     classification = classify_model(bias, variance, accuracy_value)
 
-    # Guardar clasificación en archivo
     classification_path = os.path.join(output_dir, "model_classification.txt")
     with open(classification_path, "w", encoding="utf-8") as f:
         f.write(f"Bias: {classification['bias_level']}\n")
@@ -402,12 +400,10 @@ def run_validation(feature_names: List[str],
     # Calculate accuracy on the test set
     accuracy_value = accuracy(test_targets, predictions)
 
-    # Calcular clasificación cualitativa
     bias = 1 - accuracy_value
     variance = np.var([1 if t == p else 0 for t, p in zip(test_targets, predictions)])
     classification = classify_model(bias, variance, accuracy_value)
 
-    # Guardar clasificación en archivo
     classification_path = os.path.join(output_dir, "model_classification.txt")
     with open(classification_path, "w", encoding="utf-8") as f:
         f.write(f"Bias: {classification['bias_level']}\n")

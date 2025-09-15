@@ -232,7 +232,7 @@ def main():
     print("** Training and testing on the entire dataset **\n")
     print(f"Training accuracy = {training_accuracy:.4f} (results saved in {showcase_results_directory})\n")
 
-    # Mostrar clasificación del modelo
+    # Show model classification
     classification_file = os.path.join(showcase_results_directory, "model_classification.txt")
     if os.path.exists(classification_file):
         with open(classification_file, "r", encoding="utf-8") as f:
@@ -251,13 +251,13 @@ def main():
     print(f"** Training/testing split: {int(TRAIN_TEST_RATIO*100)}/{100-int(TRAIN_TEST_RATIO*100)}, seed={RANDOM_SEED} **\n")
     print(f"Test accuracy = {test_accuracy:.4f} (results saved in {validation_results_directory})\n")
 
-    # Mostrar clasificación del modelo
+    # Show model classification
     classification_file = os.path.join(validation_results_directory, "model_classification.txt")
     if os.path.exists(classification_file):
         with open(classification_file, "r", encoding="utf-8") as f:
             print(f.read())
 
-        # Step 8: Train/Validation/Test
+    # Step 8: Train/Validation/Test
     train_val_test_results_directory = os.path.join(args.results_dir, "train_val_test")
     scores = run_train_val_test(
         feature_names, feature_rows, target_values, train_val_test_results_directory,
@@ -271,13 +271,13 @@ def main():
     print(f"Validation accuracy = {scores['val_accuracy']:.4f}")
     print(f"Test accuracy = {scores['test_accuracy']:.4f} (results saved in {train_val_test_results_directory})\n")
 
-    # Mostrar clasificación del modelo
+    # Show model classification
     classification_file = os.path.join(train_val_test_results_directory, "model_classification.txt")
     if os.path.exists(classification_file):
         with open(classification_file, "r", encoding="utf-8") as f:
             print(f.read())
 
-    # Comparación de accuracies
+    # Accuracy comparison
     plot_accuracy_comparison(
         showcase_acc=training_accuracy,
         validation_acc=test_accuracy,
