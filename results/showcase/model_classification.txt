@@ -1,3 +1,0 @@
-Bias: Bajo
-Varianza: Bajo
-Ajuste del modelo: Fit
