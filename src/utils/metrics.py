@@ -122,3 +122,46 @@ def per_class_metrics(true_labels: List[str], predicted_labels: List[str]):
         'classes': all_classes,
         'by_class': metrics_by_class
     }
+
+def classify_model(bias, variance, accuracy, threshold_low=0.33, threshold_high=0.66):
+    """
+    Clasifica bias, varianza y ajuste del modelo en categorías cualitativas.
+    :param bias: valor numérico del bias (0 a 1 recomendado)
+    :param variance: valor numérico de la varianza (0 a 1 recomendado)
+    :param accuracy: exactitud del modelo (0 a 1)
+    :return: diccionario con bias_level, variance_level y fit_level
+    """
+
+    # --- Bias ---
+    if bias < threshold_low:
+        bias_level = "Bajo"
+    elif bias < threshold_high:
+        bias_level = "Medio"
+    else:
+        bias_level = "Alto"
+
+    # --- Varianza ---
+    if variance < threshold_low:
+        variance_level = "Bajo"
+    elif variance < threshold_high:
+        variance_level = "Medio"
+    else:
+        variance_level = "Alto"
+
+    # --- Nivel de ajuste ---
+    # regla simple: underfitting = high bias + low variance
+    # overfitting = low bias + high variance
+    # fit = lo demás
+    if bias_level == "Alto" and variance_level == "Bajo":
+        fit_level = "Underfit"
+    elif bias_level == "Bajo" and variance_level == "Alto":
+        fit_level = "Overfit"
+    else:
+        fit_level = "Fit"
+
+    return {
+        "bias_level": bias_level,
+        "variance_level": variance_level,
+        "fit_level": fit_level
+    }
+

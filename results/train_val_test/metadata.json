@@ -1,0 +1,28 @@
+{
+  "split": {
+    "ratio_train": 0.7,
+    "ratio_val": 0.15,
+    "ratio_test": 0.15000000000000005,
+    "seed": 42
+  },
+  "target": "class",
+  "sizes": {
+    "train": 5686,
+    "val": 1218,
+    "test": 1220
+  },
+  "class_counts": {
+    "train": {
+      "e": 2945,
+      "p": 2741
+    },
+    "val": {
+      "p": 587,
+      "e": 631
+    },
+    "test": {
+      "e": 632,
+      "p": 588
+    }
+  }
+}

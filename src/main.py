@@ -14,7 +14,7 @@ from typing import List, Tuple
 import pandas as pd
 
 from utils.files import reset_result_directories, ensure_result_directories
-from workflow import run_showcase, run_validation
+from workflow import run_showcase, run_validation, run_train_val_test
 
 # Fixed configuration for train/test split ratio and random seed
 TRAIN_TEST_RATIO = 0.8
@@ -186,6 +186,8 @@ def main():
     ensure_result_directories(args.results_dir)
     showcase_results_directory = os.path.join(args.results_dir, "showcase")
     validation_results_directory = os.path.join(args.results_dir, "validation")
+    train_val_test_results_directory = os.path.join(args.results_dir, "train_val_test")
+
 
     # Step 5: Tree render config (kept for compatibility)
     TREE_RENDER_CONFIGURATION = {
@@ -205,17 +207,48 @@ def main():
     print("** Training and testing on the entire dataset **\n")
     print(f"Training accuracy = {training_accuracy:.4f} (results saved in {showcase_results_directory})\n")
 
+    # Mostrar clasificación del modelo
+    classification_file = os.path.join(showcase_results_directory, "model_classification.txt")
+    if os.path.exists(classification_file):
+        with open(classification_file, "r", encoding="utf-8") as f:
+            print(f.read())
+
     # Step 7: Validation (pass target_name to label the CSV headers correctly)
     test_accuracy = run_validation(
-    feature_names, feature_rows, target_values, validation_results_directory,
-    train_ratio=TRAIN_TEST_RATIO, seed=RANDOM_SEED,
-    tree_render=TREE_RENDER_CONFIGURATION,
-    target_name=selected_target_column,
-    use_gridsearch=use_gridsearch
+        feature_names, feature_rows, target_values, validation_results_directory,
+        train_ratio=TRAIN_TEST_RATIO, seed=RANDOM_SEED,
+        tree_render=TREE_RENDER_CONFIGURATION,
+        target_name=selected_target_column,
+        use_gridsearch=use_gridsearch
     )
     print("\n=== VALIDATION ===")
     print(f"** Training/testing split: {int(TRAIN_TEST_RATIO*100)}/{100-int(TRAIN_TEST_RATIO*100)}, seed={RANDOM_SEED} **\n")
     print(f"Test accuracy = {test_accuracy:.4f} (results saved in {validation_results_directory})\n")
+
+    # Mostrar clasificación del modelo
+    classification_file = os.path.join(validation_results_directory, "model_classification.txt")
+    if os.path.exists(classification_file):
+        with open(classification_file, "r", encoding="utf-8") as f:
+            print(f.read())
+
+        # Step 8: Train/Validation/Test
+    train_val_test_results_directory = os.path.join(args.results_dir, "train_val_test")
+    scores = run_train_val_test(
+        feature_names, feature_rows, target_values, train_val_test_results_directory,
+        train_ratio=0.7, val_ratio=0.15, seed=RANDOM_SEED,
+        target_name=selected_target_column,
+        use_gridsearch=use_gridsearch
+    )
+    print("\n=== TRAIN / VALIDATION / TEST ===")
+    print(f"** Split: 70/15/15, seed={RANDOM_SEED} **\n")
+    print(f"Validation accuracy = {scores['val_accuracy']:.4f}")
+    print(f"Test accuracy = {scores['test_accuracy']:.4f} (results saved in {train_val_test_results_directory})\n")
+
+    # Mostrar clasificación del modelo
+    classification_file = os.path.join(train_val_test_results_directory, "model_classification.txt")
+    if os.path.exists(classification_file):
+        with open(classification_file, "r", encoding="utf-8") as f:
+            print(f.read())
 
 if __name__ == "__main__":
     main()

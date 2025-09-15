@@ -1,0 +1,34 @@
+|--- odor_n <= 0.50
+|   |--- bruises_f <= 0.50
+|   |   |--- stalk-root_c <= 0.50
+|   |   |   |--- stalk-root_r <= 0.50
+|   |   |   |   |--- habitat_d <= 0.50
+|   |   |   |   |   |--- class: p
+|   |   |   |   |--- habitat_d >  0.50
+|   |   |   |   |   |--- class: e
+|   |   |   |--- stalk-root_r >  0.50
+|   |   |   |   |--- class: e
+|   |   |--- stalk-root_c >  0.50
+|   |   |   |--- class: e
+|   |--- bruises_f >  0.50
+|   |   |--- class: p
+|--- odor_n >  0.50
+|   |--- spore-print-color_r <= 0.50
+|   |   |--- stalk-surface-below-ring_y <= 0.50
+|   |   |   |--- cap-surface_g <= 0.50
+|   |   |   |   |--- gill-size_b <= 0.50
+|   |   |   |   |   |--- bruises_f <= 0.50
+|   |   |   |   |   |   |--- class: p
+|   |   |   |   |   |--- bruises_f >  0.50
+|   |   |   |   |   |   |--- class: e
+|   |   |   |   |--- gill-size_b >  0.50
+|   |   |   |   |   |--- class: e
+|   |   |   |--- cap-surface_g >  0.50
+|   |   |   |   |--- class: p
+|   |   |--- stalk-surface-below-ring_y >  0.50
+|   |   |   |--- population_y <= 0.50
+|   |   |   |   |--- class: p
+|   |   |   |--- population_y >  0.50
+|   |   |   |   |--- class: e
+|   |--- spore-print-color_r >  0.50
+|   |   |--- class: p

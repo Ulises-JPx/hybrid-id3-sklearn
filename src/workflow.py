@@ -16,7 +16,7 @@ import numpy as np
 
 from model.id3 import DecisionTreeID3Sklearn
 from utils.files import save_text_to_file
-from utils.metrics import accuracy, confusion_matrix_text, classification_report_text
+from utils.metrics import accuracy, confusion_matrix_text, classification_report_text, classify_model
 from utils.plots import plot_confusion_matrix, plot_per_class_metrics_bars, plot_accuracy_bar
 from utils.tree_viz import save_tree_png_safe
 
@@ -100,6 +100,122 @@ def split_train_test(features: List[List], targets: List[str], train_ratio: floa
     test_targets = [targets[i] for i in test_indices]
     return train_features, train_targets, test_features, test_targets
 
+def split_train_val_test(features, targets, train_ratio=0.7, val_ratio=0.15, seed=42):
+    """
+    Split dataset into train, validation, and test sets.
+    """
+    from sklearn.model_selection import train_test_split
+    X_train, X_temp, y_train, y_temp = train_test_split(features, targets, test_size=1-train_ratio, random_state=seed, stratify=targets)
+    # dividir lo que quedó en validación y test
+    val_size = val_ratio / (1-train_ratio)  # proporcional dentro del temp
+    X_val, X_test, y_val, y_test = train_test_split(X_temp, y_temp, test_size=1-val_size, random_state=seed, stratify=y_temp)
+    return X_train, y_train, X_val, y_val, X_test, y_test
+
+def run_train_val_test(feature_names: List[str],
+                       features: List[List],
+                       targets: List,
+                       output_dir: str,
+                       train_ratio: float = 0.7,
+                       val_ratio: float = 0.15,
+                       seed: int = 42,
+                       target_name: str = "target",
+                       use_gridsearch: bool = False) -> Dict[str, float]:
+    """
+    Trains and evaluates the decision tree using a train/validation/test split.
+    Saves splits, metadata, and results into the output directory.
+
+    Returns:
+        Dict with accuracies for validation and test sets.
+    """
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Normalize features and targets
+    normalized_features, normalized_targets = normalize_table(features, targets)
+
+    # Split data into train, validation, and test sets
+    X_train, y_train, X_val, y_val, X_test, y_test = split_train_val_test(
+        normalized_features, normalized_targets,
+        train_ratio=train_ratio, val_ratio=val_ratio, seed=seed
+    )
+
+    # Prepare CSV headers
+    csv_headers = list(feature_names) + [target_name]
+    train_csv_path = os.path.join(output_dir, "train.csv")
+    val_csv_path   = os.path.join(output_dir, "validation.csv")
+    test_csv_path  = os.path.join(output_dir, "test.csv")
+
+    # Save training data
+    with open(train_csv_path, "w", newline="", encoding="utf-8") as train_file:
+        writer = csv.writer(train_file)
+        writer.writerow(csv_headers)
+        for row, target in zip(X_train, y_train):
+            writer.writerow(list(row) + [target])
+
+    # Save validation data
+    with open(val_csv_path, "w", newline="", encoding="utf-8") as val_file:
+        writer = csv.writer(val_file)
+        writer.writerow(csv_headers)
+        for row, target in zip(X_val, y_val):
+            writer.writerow(list(row) + [target])
+
+    # Save testing data
+    with open(test_csv_path, "w", newline="", encoding="utf-8") as test_file:
+        writer = csv.writer(test_file)
+        writer.writerow(csv_headers)
+        for row, target in zip(X_test, y_test):
+            writer.writerow(list(row) + [target])
+
+    # Save metadata about split
+    from collections import Counter
+    metadata = {
+        "split": {
+            "ratio_train": train_ratio,
+            "ratio_val": val_ratio,
+            "ratio_test": 1.0 - train_ratio - val_ratio,
+            "seed": seed
+        },
+        "target": target_name,
+        "sizes": {"train": len(X_train), "val": len(X_val), "test": len(X_test)},
+        "class_counts": {
+            "train": dict(Counter(y_train)),
+            "val": dict(Counter(y_val)),
+            "test": dict(Counter(y_test))
+        }
+    }
+    with open(os.path.join(output_dir, "metadata.json"), "w", encoding="utf-8") as metadata_file:
+        json.dump(metadata, metadata_file, indent=2, ensure_ascii=False)
+
+    # Train classifier
+    classifier = DecisionTreeID3Sklearn()
+    classifier.train(X_train, y_train, feature_names, use_gridsearch=use_gridsearch)
+
+    # Validate
+    val_preds = classifier.predict_batch(X_val)
+    val_acc = accuracy(y_val, val_preds)
+
+    # Test
+    test_preds = classifier.predict_batch(X_test)
+    test_acc = accuracy(y_test, test_preds)
+
+    # Model classification summary (bias/variance/fit based on test set)
+    bias = 1 - test_acc
+    variance = np.var([1 if t == p else 0 for t, p in zip(y_test, test_preds)])
+    classification = classify_model(bias, variance, test_acc)
+
+    with open(os.path.join(output_dir, "model_classification.txt"), "w", encoding="utf-8") as f:
+        f.write(f"Bias: {classification['bias_level']}\n")
+        f.write(f"Varianza: {classification['variance_level']}\n")
+        f.write(f"Ajuste del modelo: {classification['fit_level']}\n")
+
+    # Save all results (from test set)
+    tree_text = classifier.print_tree()
+    save_all_results(output_dir, y_test, test_preds, tree_text, test_acc,
+                     confusion_matrix_title="Confusion Matrix (Test)",
+                     metrics_title="Per-Class Metrics (Test)")
+
+    return {"val_accuracy": val_acc, "test_accuracy": test_acc}
+
+
 def save_all_results(output_dir: str, true_targets: List, predicted_targets: List, tree_text: str, accuracy_value: float, confusion_matrix_title: str, metrics_title: str):
     """
     Saves all results and visualizations to the specified output directory.
@@ -167,6 +283,18 @@ def run_showcase(feature_names: List[str], features: List[List], targets: List, 
     predictions = classifier.predict_batch(normalized_features)
     # Calculate accuracy
     accuracy_value = accuracy(normalized_targets, predictions)
+
+    # Calcular clasificación cualitativa
+    bias = 1 - accuracy_value  # ejemplo simple: bias ~ error
+    variance = np.var([1 if t == p else 0 for t, p in zip(normalized_targets, predictions)])
+    classification = classify_model(bias, variance, accuracy_value)
+
+    # Guardar clasificación en archivo
+    classification_path = os.path.join(output_dir, "model_classification.txt")
+    with open(classification_path, "w", encoding="utf-8") as f:
+        f.write(f"Bias: {classification['bias_level']}\n")
+        f.write(f"Varianza: {classification['variance_level']}\n")
+        f.write(f"Ajuste del modelo: {classification['fit_level']}\n")
 
     # Get string representation of the trained tree
     tree_text = classifier.print_tree()
@@ -247,6 +375,18 @@ def run_validation(feature_names: List[str],
     predictions = classifier.predict_batch(test_features)
     # Calculate accuracy on the test set
     accuracy_value = accuracy(test_targets, predictions)
+
+    # Calcular clasificación cualitativa
+    bias = 1 - accuracy_value
+    variance = np.var([1 if t == p else 0 for t, p in zip(test_targets, predictions)])
+    classification = classify_model(bias, variance, accuracy_value)
+
+    # Guardar clasificación en archivo
+    classification_path = os.path.join(output_dir, "model_classification.txt")
+    with open(classification_path, "w", encoding="utf-8") as f:
+        f.write(f"Bias: {classification['bias_level']}\n")
+        f.write(f"Varianza: {classification['variance_level']}\n")
+        f.write(f"Ajuste del modelo: {classification['fit_level']}\n")
 
     # Get string representation of the trained tree
     tree_text = classifier.print_tree()
